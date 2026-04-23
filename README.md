@@ -29,7 +29,7 @@ Run [Claude Code](https://github.com/anthropics/claude-code) in a disposable Doc
 
 On start the script looks for `~/.claude/.credentials.json` on the host:
 
-- **Found** → `~/.claude` is mounted read-only so the existing login is reused without risk of the container writing back to it. If `~/.claude.json` exists it is copied to a temp file and mounted writable, so the container can update it freely without touching the host copy (the temp file is removed on exit).
+- **Found** → a throwaway `~/.claude` is assembled in a temp dir and mounted writable at `/root/.claude`. Only a selective set of host files is copied in: `.credentials.json`, `settings.json`, and `plugins/`. Session-scratch subdirectories (`sessions`, `todos`, `shell-snapshots`, `file-history`, `projects`, etc.) are created empty. If `~/.claude.json` exists it is copied to a temp file and mounted writable at `/root/.claude.json`. The container can write freely; nothing is written back to the host, and both temp paths are removed on exit.
 - **Not found** → no config is mounted. The container is fully throwaway: log in interactively, and the credentials vanish when the container exits.
 
 ### Examples

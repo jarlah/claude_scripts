@@ -39,11 +39,24 @@ if [ ! -f "$DOCKERFILE" ]; then
     usage
 fi
 
+cleanup() {
+    # Container runs as root, so writes into $TMP_CLAUDE_DIR are root-owned on the host.
+    # Chown back via a throwaway container so plain rm as the host user works.
+    if [ -n "${TMP_CLAUDE_DIR:-}" ] && [ -d "$TMP_CLAUDE_DIR" ]; then
+        if docker image inspect claude-code-base >/dev/null 2>&1; then
+            docker run --rm -v "$TMP_CLAUDE_DIR:/c" claude-code-base \
+                chown -R "$(id -u):$(id -g)" /c >/dev/null 2>&1 || true
+        fi
+        rm -rf "$TMP_CLAUDE_DIR"
+    fi
+    [ -n "${TMP_CLAUDE_CONFIG:-}" ] && rm -f "$TMP_CLAUDE_CONFIG"
+}
+
 CLAUDE_MOUNT=()
 if [ -r "$CREDENTIALS_FILE" ] && [ -r "$HOST_CLAUDE_DIR" ]; then
     echo "Fant Claude-innlogging i $HOST_CLAUDE_DIR — kopierer minimal config til throwaway-mount."
     TMP_CLAUDE_DIR=$(mktemp -d)
-    trap 'rm -rf "$TMP_CLAUDE_DIR"' EXIT
+    trap cleanup EXIT
 
     # Persistent user state we want inside the container.
     cp "$CREDENTIALS_FILE" "$TMP_CLAUDE_DIR/.credentials.json"
@@ -66,7 +79,6 @@ if [ -r "$CREDENTIALS_FILE" ] && [ -r "$HOST_CLAUDE_DIR" ]; then
     if [ -r "$HOST_CLAUDE_CONFIG" ]; then
         TMP_CLAUDE_CONFIG=$(mktemp)
         cp "$HOST_CLAUDE_CONFIG" "$TMP_CLAUDE_CONFIG"
-        trap 'rm -rf "$TMP_CLAUDE_DIR" "$TMP_CLAUDE_CONFIG"' EXIT
         CLAUDE_MOUNT+=(-v "$TMP_CLAUDE_CONFIG:/root/.claude.json")
     fi
 else
