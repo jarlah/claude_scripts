@@ -69,4 +69,5 @@ dockerfiles/
   base.Dockerfile        # Node + Claude Code CLI
   elixir.Dockerfile
   rust.Dockerfile
+  java.Dockerfile
 ```
