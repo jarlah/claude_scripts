@@ -4,16 +4,17 @@ set -euo pipefail
 
 TARGET_DIR=$(pwd)
 READONLY=""
-VOLUME_NAME="claude-config"
 TOOLCHAIN="base"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DOCKERFILES_DIR="$SCRIPT_DIR/dockerfiles"
+HOST_CLAUDE_DIR="${HOME}/.claude"
+HOST_CLAUDE_CONFIG="${HOME}/.claude.json"
+CREDENTIALS_FILE="$HOST_CLAUDE_DIR/.credentials.json"
 
 usage() {
-    echo "Bruk: $0 [-d katalog] [-r] [-v volumnavn] [-t toolchain]"
+    echo "Bruk: $0 [-d katalog] [-r] [-t toolchain]"
     echo "  -d    Katalog Claude skal jobbe i (standard: nåværende)"
-    echo "  -r    Monter som skrivebeskyttet (read-only)"
-    echo "  -v    Docker volumnavn for konfigurasjon (standard: claude-config)"
+    echo "  -r    Monter arbeidskatalogen som skrivebeskyttet (read-only)"
     echo "  -t    Toolchain (standard: base). Tilgjengelige:"
     for f in "$DOCKERFILES_DIR"/*.Dockerfile; do
         [ -e "$f" ] || continue
@@ -23,11 +24,10 @@ usage() {
     exit 1
 }
 
-while getopts "d:rv:t:h" opt; do
+while getopts "d:rt:h" opt; do
     case $opt in
         d) TARGET_DIR=$(realpath "$OPTARG") ;;
         r) READONLY=":ro" ;;
-        v) VOLUME_NAME="$OPTARG" ;;
         t) TOOLCHAIN="$OPTARG" ;;
         *) usage ;;
     esac
@@ -37,6 +37,20 @@ DOCKERFILE="$DOCKERFILES_DIR/${TOOLCHAIN}.Dockerfile"
 if [ ! -f "$DOCKERFILE" ]; then
     echo "Feil: fant ikke $DOCKERFILE"
     usage
+fi
+
+CLAUDE_MOUNT=()
+if [ -r "$CREDENTIALS_FILE" ] && [ -r "$HOST_CLAUDE_DIR" ]; then
+    echo "Fant Claude-innlogging i $HOST_CLAUDE_DIR — monterer read-only."
+    CLAUDE_MOUNT=(-v "$HOST_CLAUDE_DIR:/root/.claude:ro")
+    if [ -r "$HOST_CLAUDE_CONFIG" ]; then
+        TMP_CLAUDE_CONFIG=$(mktemp)
+        cp "$HOST_CLAUDE_CONFIG" "$TMP_CLAUDE_CONFIG"
+        trap 'rm -f "$TMP_CLAUDE_CONFIG"' EXIT
+        CLAUDE_MOUNT+=(-v "$TMP_CLAUDE_CONFIG:/root/.claude.json")
+    fi
+else
+    echo "Ingen Claude-innlogging funnet — starter throwaway-container, logg inn inne i containeren."
 fi
 
 echo "Bygger claude-code-base..."
@@ -53,6 +67,6 @@ echo "Starter Claude ($TOOLCHAIN) i: $TARGET_DIR (ReadOnly: ${READONLY:-false})"
 docker run -it \
   --rm \
   -v "$TARGET_DIR:/app$READONLY" \
-  -v "$VOLUME_NAME:/root/.claude" \
+  ${CLAUDE_MOUNT[@]+"${CLAUDE_MOUNT[@]}"} \
   --workdir /app \
   "$IMAGE_TAG"
