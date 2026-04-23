@@ -7,6 +7,7 @@ Run [Claude Code](https://github.com/anthropics/claude-code) in a disposable Doc
 - Isolate Claude Code from the host filesystem — only the target directory is mounted.
 - Pick a language toolchain per session (Elixir, Rust, …) without polluting the host.
 - Reuse your existing host login read-only when available, or spin up a throwaway container and log in fresh.
+- Opinionated defaults: Claude runs with `--dangerously-skip-permissions` (yolo), inside a rootless image, and as the host user so mounted files stay host-owned.
 
 ## Requirements
 
@@ -54,6 +55,7 @@ Each toolchain is a Dockerfile in `dockerfiles/` that builds on top of `claude-c
 | `base` | Node 22, git, `@anthropic-ai/claude-code` |
 | `elixir` | Erlang/OTP, Elixir, hex, rebar |
 | `rust` | Rust (stable, minimal) + common native build deps (OpenSSL, ALSA, udev, Wayland, X11) |
+| `java` | Eclipse Temurin JDK 24 + Maven 3.9.9 |
 
 ### Adding a toolchain
 

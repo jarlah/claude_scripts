@@ -40,15 +40,7 @@ if [ ! -f "$DOCKERFILE" ]; then
 fi
 
 cleanup() {
-    # Container runs as root, so writes into $TMP_CLAUDE_DIR are root-owned on the host.
-    # Chown back via a throwaway container so plain rm as the host user works.
-    if [ -n "${TMP_CLAUDE_DIR:-}" ] && [ -d "$TMP_CLAUDE_DIR" ]; then
-        if docker image inspect claude-code-base >/dev/null 2>&1; then
-            docker run --rm -v "$TMP_CLAUDE_DIR:/c" claude-code-base \
-                chown -R "$(id -u):$(id -g)" /c >/dev/null 2>&1 || true
-        fi
-        rm -rf "$TMP_CLAUDE_DIR"
-    fi
+    [ -n "${TMP_CLAUDE_DIR:-}" ] && [ -d "$TMP_CLAUDE_DIR" ] && rm -rf "$TMP_CLAUDE_DIR"
     [ -n "${TMP_CLAUDE_CONFIG:-}" ] && rm -f "$TMP_CLAUDE_CONFIG"
 }
 
@@ -74,12 +66,12 @@ if [ -r "$CREDENTIALS_FILE" ] && [ -r "$HOST_CLAUDE_DIR" ]; then
         "$TMP_CLAUDE_DIR/telemetry" \
         "$TMP_CLAUDE_DIR/projects"
 
-    CLAUDE_MOUNT=(-v "$TMP_CLAUDE_DIR:/root/.claude")
+    CLAUDE_MOUNT=(-v "$TMP_CLAUDE_DIR:/home/node/.claude")
 
     if [ -r "$HOST_CLAUDE_CONFIG" ]; then
         TMP_CLAUDE_CONFIG=$(mktemp)
         cp "$HOST_CLAUDE_CONFIG" "$TMP_CLAUDE_CONFIG"
-        CLAUDE_MOUNT+=(-v "$TMP_CLAUDE_CONFIG:/root/.claude.json")
+        CLAUDE_MOUNT+=(-v "$TMP_CLAUDE_CONFIG:/home/node/.claude.json")
     fi
 else
     echo "Ingen Claude-innlogging funnet — starter throwaway-container, logg inn inne i containeren."
@@ -98,6 +90,7 @@ echo "Starter Claude ($TOOLCHAIN) i: $TARGET_DIR (ReadOnly: ${READONLY:-false})"
 
 docker run -it \
   --rm \
+  --user "$(id -u):$(id -g)" \
   -v "$TARGET_DIR:/app$READONLY" \
   ${CLAUDE_MOUNT[@]+"${CLAUDE_MOUNT[@]}"} \
   --workdir /app \
