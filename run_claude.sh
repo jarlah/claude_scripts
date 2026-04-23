@@ -41,12 +41,32 @@ fi
 
 CLAUDE_MOUNT=()
 if [ -r "$CREDENTIALS_FILE" ] && [ -r "$HOST_CLAUDE_DIR" ]; then
-    echo "Fant Claude-innlogging i $HOST_CLAUDE_DIR — monterer read-only."
-    CLAUDE_MOUNT=(-v "$HOST_CLAUDE_DIR:/root/.claude:ro")
+    echo "Fant Claude-innlogging i $HOST_CLAUDE_DIR — kopierer minimal config til throwaway-mount."
+    TMP_CLAUDE_DIR=$(mktemp -d)
+    trap 'rm -rf "$TMP_CLAUDE_DIR"' EXIT
+
+    # Persistent user state we want inside the container.
+    cp "$CREDENTIALS_FILE" "$TMP_CLAUDE_DIR/.credentials.json"
+    [ -f "$HOST_CLAUDE_DIR/settings.json" ] && cp "$HOST_CLAUDE_DIR/settings.json" "$TMP_CLAUDE_DIR/"
+    [ -d "$HOST_CLAUDE_DIR/plugins" ] && cp -a "$HOST_CLAUDE_DIR/plugins" "$TMP_CLAUDE_DIR/"
+
+    # Empty dirs Claude writes to during a session (parent must exist for plain mkdir).
+    mkdir -p \
+        "$TMP_CLAUDE_DIR/session-env" \
+        "$TMP_CLAUDE_DIR/sessions" \
+        "$TMP_CLAUDE_DIR/shell-snapshots" \
+        "$TMP_CLAUDE_DIR/todos" \
+        "$TMP_CLAUDE_DIR/file-history" \
+        "$TMP_CLAUDE_DIR/statsig" \
+        "$TMP_CLAUDE_DIR/telemetry" \
+        "$TMP_CLAUDE_DIR/projects"
+
+    CLAUDE_MOUNT=(-v "$TMP_CLAUDE_DIR:/root/.claude")
+
     if [ -r "$HOST_CLAUDE_CONFIG" ]; then
         TMP_CLAUDE_CONFIG=$(mktemp)
         cp "$HOST_CLAUDE_CONFIG" "$TMP_CLAUDE_CONFIG"
-        trap 'rm -f "$TMP_CLAUDE_CONFIG"' EXIT
+        trap 'rm -rf "$TMP_CLAUDE_DIR" "$TMP_CLAUDE_CONFIG"' EXIT
         CLAUDE_MOUNT+=(-v "$TMP_CLAUDE_CONFIG:/root/.claude.json")
     fi
 else
