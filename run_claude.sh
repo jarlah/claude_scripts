@@ -92,9 +92,17 @@ fi
 
 echo "Starter Claude ($TOOLCHAIN) i: $TARGET_DIR (ReadOnly: ${READONLY:-false})"
 
+USER_ARGS=(--user "$(id -u):$(id -g)")
+if docker --version 2>&1 | grep -qi podman; then
+    # Rootless podman: map container's `node` user (uid/gid 1000) to host user
+    # so bind-mounted files keep host ownership. Passing --user with host IDs
+    # breaks setgroups in the user namespace.
+    USER_ARGS=(--userns=keep-id:uid=1000,gid=1000)
+fi
+
 docker run -it \
   --rm \
-  --user "$(id -u):$(id -g)" \
+  "${USER_ARGS[@]}" \
   -v "$TARGET_DIR:/app$READONLY" \
   ${CLAUDE_MOUNT[@]+"${CLAUDE_MOUNT[@]}"} \
   --workdir /app \
