@@ -3,7 +3,7 @@ FROM ${BASE_IMAGE}
 
 USER root
 
-ARG MAVEN_VERSION=3.9.9
+ARG MAVEN_VERSION=3.9.11
 
 ENV JAVA_HOME=/opt/java \
     MAVEN_HOME=/opt/maven \
@@ -21,7 +21,7 @@ RUN apt-get update \
     && curl -fsSL "https://api.adoptium.net/v3/binary/latest/24/ga/linux/${jdk_arch}/jdk/hotspot/normal/eclipse" -o /tmp/jdk.tar.gz \
     && tar -xzf /tmp/jdk.tar.gz -C /opt/java --strip-components=1 \
     && rm /tmp/jdk.tar.gz \
-    && curl -fsSL "https://dlcdn.apache.org/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.tar.gz" -o /tmp/maven.tar.gz \
+    && curl -fsSL "https://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.tar.gz" -o /tmp/maven.tar.gz \
     && tar -xzf /tmp/maven.tar.gz -C /opt/maven --strip-components=1 \
     && rm /tmp/maven.tar.gz \
     && rm -rf /var/lib/apt/lists/*
