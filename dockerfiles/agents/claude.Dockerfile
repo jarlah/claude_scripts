@@ -6,8 +6,7 @@ RUN apt-get update \
 
 RUN npm install -g @anthropic-ai/claude-code
 
-# Make $HOME world-writable so the container works when run with
-# --user $(id -u):$(id -g) from the host.
+# $HOME world-writable so bind mounts work when running with host uid/gid.
 RUN chmod 777 /home/node \
     && mkdir -p /app && chown node:node /app
 

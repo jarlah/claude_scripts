@@ -1,6 +1,8 @@
+ARG BASE_IMAGE
+
 FROM node:20-slim AS node20-src
 
-FROM claude-code-base
+FROM ${BASE_IMAGE}
 
 USER root
 

@@ -1,8 +1,9 @@
 ARG ELIXIR_IMAGE=hexpm/elixir:1.19.5-erlang-28.3.2-debian-bookworm-20260421-slim
+ARG BASE_IMAGE
 
 FROM ${ELIXIR_IMAGE} AS elixir-src
 
-FROM claude-code-base
+FROM ${BASE_IMAGE}
 
 USER root
 
