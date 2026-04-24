@@ -1,4 +1,4 @@
-# claude_scripts
+# agents in rootless docker
 
 Run a coding agent ([Claude Code](https://github.com/anthropics/claude-code), [OpenAI Codex CLI](https://github.com/openai/codex), [Gemini CLI](https://github.com/google-gemini/gemini-cli), or [Aider](https://github.com/Aider-AI/aider)) in a disposable Docker container, with a toolchain of your choice and your host login reused read-only when available.
 
