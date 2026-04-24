@@ -1,0 +1,51 @@
+name: smoketest
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: ${{ matrix.runtime }} / ${{ matrix.agent }} / ${{ matrix.toolchain }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        runtime: [docker, podman]
+        agent: [claude, codex, gemini, aider]
+        toolchain: [base, elixir, java, node, rust]
+    env:
+      RUNTIME: ${{ matrix.runtime }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Smoke-test agent CLI
+        run: |
+          case "${{ matrix.agent }}" in
+            claude) cli="claude --version" ;;
+            codex)  cli="codex --version" ;;
+            gemini) cli="gemini --version" ;;
+            aider)  cli="aider --version" ;;
+          esac
+          ./run_agent.sh \
+            -a "${{ matrix.agent }}" \
+            -t "${{ matrix.toolchain }}" \
+            -d "$(mktemp -d)" \
+            -c "$cli"
+
+      - name: Smoke-test toolchain
+        if: matrix.toolchain != 'base'
+        run: |
+          case "${{ matrix.toolchain }}" in
+            elixir) cli="elixir --version && mix --version" ;;
+            java)   cli="java -version && mvn --version" ;;
+            node)   cli="node --version && npm --version" ;;
+            rust)   cli="rustc --version && cargo --version" ;;
+          esac
+          ./run_agent.sh \
+            -a "${{ matrix.agent }}" \
+            -t "${{ matrix.toolchain }}" \
+            -d "$(mktemp -d)" \
+            -c "$cli"

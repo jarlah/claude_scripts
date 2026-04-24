@@ -11,13 +11,13 @@ Run a coding agent ([Claude Code](https://github.com/anthropics/claude-code), [O
 
 ## Requirements
 
-- Docker or rootless Podman (with a `docker` compatibility symlink)
+- Docker, or rootless Podman (either via a `docker` compatibility symlink or by setting `RUNTIME=podman`)
 - Bash
 
 ## Usage
 
 ```
-./run_agent.sh [-a agent] [-d directory] [-r] [-t toolchain]
+./run_agent.sh [-a agent] [-d directory] [-r] [-t toolchain] [-c command | -p prompt]
 ```
 
 | Flag | Description | Default |
@@ -26,6 +26,14 @@ Run a coding agent ([Claude Code](https://github.com/anthropics/claude-code), [O
 | `-d` | Directory the agent should work in | current directory |
 | `-r` | Mount the target directory read-only | off |
 | `-t` | Toolchain (see below) | `base` |
+| `-c` | Run a shell command in the container non-interactively (overrides the agent CMD) | — |
+| `-p` | Send a single prompt to the agent non-interactively, then exit | — |
+
+`-c` and `-p` are mutually exclusive. Both drop the TTY so the script is usable from CI or other non-interactive contexts.
+
+| Env | Description | Default |
+| --- | --- | --- |
+| `RUNTIME` | Container runtime binary (`docker` or `podman`) | `docker` |
 
 `./run_claude.sh` is kept as a thin wrapper that forwards to `run_agent.sh -a claude`.
 
@@ -41,7 +49,7 @@ Run a coding agent ([Claude Code](https://github.com/anthropics/claude-code), [O
 Each agent is a pair of files:
 
 - `dockerfiles/agents/<name>.Dockerfile` — builds a uid-1000 `node` user at `/home/node`, installs the CLI, sets `CMD`.
-- `agents/<name>.sh` — shell plugin that defines `agent_prepare_mounts` / `agent_cleanup`, populating `AGENT_DOCKER_ARGS` with the mounts and `-e` env vars the agent needs.
+- `agents/<name>.sh` — shell plugin that defines `agent_prepare_mounts` / `agent_cleanup` (populating `AGENT_DOCKER_ARGS` with mounts and `-e` env vars), and optionally `agent_prompt_argv "$prompt"` (populating `AGENT_PROMPT_ARGV` with the argv to invoke the agent's non-interactive prompt mode for `-p`).
 
 ### Login handling
 
@@ -65,6 +73,15 @@ If nothing is found on the host the container is fully throwaway — log in or e
 
 # Aider read-only, against the current directory
 ./run_agent.sh -a aider -r
+
+# Non-interactive: run a shell command in the container (smoketest the CLI)
+./run_agent.sh -a gemini -c 'gemini --version'
+
+# Non-interactive: send a one-shot prompt to the agent
+./run_agent.sh -a claude -p 'summarize README.md'
+
+# Use rootless Podman instead of Docker
+RUNTIME=podman ./run_agent.sh -t rust
 
 # Back-compat wrapper
 ./run_claude.sh -t node
@@ -96,7 +113,7 @@ and run with `-t <name>`. It will show up in `-h` automatically. Any toolchain m
 ### Adding an agent
 
 1. Add `dockerfiles/agents/<name>.Dockerfile`. It must create a uid-1000 `node` user at `/home/node`, install the CLI, and set `CMD` to the agent's "run autonomously" entrypoint. `aider.Dockerfile` is the template for non-Node bases.
-2. Add `agents/<name>.sh`. It must set `AGENT_CONTAINER_HOME` and define `agent_prepare_mounts` (appending to `AGENT_DOCKER_ARGS`) and `agent_cleanup`.
+2. Add `agents/<name>.sh`. It must set `AGENT_CONTAINER_HOME` and define `agent_prepare_mounts` (appending to `AGENT_DOCKER_ARGS`) and `agent_cleanup`. Define `agent_prompt_argv "$1"` (filling `AGENT_PROMPT_ARGV`) to enable `-p` prompt mode.
 
 Both files are discovered by name, so the new agent shows up in `-h` and is usable as `-a <name>`.
 

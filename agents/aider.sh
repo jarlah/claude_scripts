@@ -32,3 +32,7 @@ agent_prepare_mounts() {
 agent_cleanup() {
     [ -n "${TMP_AGENT_CONFIG:-}" ] && rm -f "$TMP_AGENT_CONFIG"
 }
+
+agent_prompt_argv() {
+    AGENT_PROMPT_ARGV=(aider --yes-always --no-pretty --message "$1")
+}

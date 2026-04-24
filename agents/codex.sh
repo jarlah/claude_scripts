@@ -25,3 +25,7 @@ agent_prepare_mounts() {
 agent_cleanup() {
     [ -n "${TMP_AGENT_DIR:-}" ] && [ -d "$TMP_AGENT_DIR" ] && rm -rf "$TMP_AGENT_DIR"
 }
+
+agent_prompt_argv() {
+    AGENT_PROMPT_ARGV=(codex exec --dangerously-bypass-approvals-and-sandbox "$1")
+}

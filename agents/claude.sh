@@ -47,3 +47,7 @@ agent_cleanup() {
     [ -n "${TMP_AGENT_DIR:-}" ] && [ -d "$TMP_AGENT_DIR" ] && rm -rf "$TMP_AGENT_DIR"
     [ -n "${TMP_AGENT_CONFIG:-}" ] && rm -f "$TMP_AGENT_CONFIG"
 }
+
+agent_prompt_argv() {
+    AGENT_PROMPT_ARGV=(claude --dangerously-skip-permissions --print "$1")
+}
