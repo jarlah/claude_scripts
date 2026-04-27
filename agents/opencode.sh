@@ -3,8 +3,8 @@
 # Reuses the host config if present: copies ~/.config/opencode/opencode.json
 # and tui.json into a throwaway dir mounted at /home/node/.config/opencode.
 # The auth file (~/.local/share/opencode/auth.json, written by
-# "opencode auth login") is copied to a separate temp file and mounted at
-# /home/node/.local/share/opencode/auth.json so provider credentials work.
+# "opencode auth login") is copied into a throwaway .local tree mounted at
+# /home/node/.local so provider credentials work and runtime state is writable.
 # Common provider API keys are also forwarded from the host environment.
 
 AGENT_CONTAINER_HOME="/home/node"
@@ -47,24 +47,37 @@ agent_prepare_mounts() {
 
     AGENT_DOCKER_ARGS+=(-v "$TMP_AGENT_DIR:$AGENT_CONTAINER_HOME/.config/opencode")
 
-    # --- auth.json (API keys from "opencode auth login") ---
+    # --- .local (auth + writable runtime state) ---
     if [ -f "$host_auth" ]; then
-        TMP_AGENT_AUTH=$(mktemp)
-        cp "$host_auth" "$TMP_AGENT_AUTH"
-        AGENT_DOCKER_ARGS+=(-v "$TMP_AGENT_AUTH:$AGENT_CONTAINER_HOME/.local/share/opencode/auth.json")
+        TMP_AGENT_LOCAL=$(mktemp -d)
+        mkdir -p "$TMP_AGENT_LOCAL/share/opencode" "$TMP_AGENT_LOCAL/state"
+        cp "$host_auth" "$TMP_AGENT_LOCAL/share/opencode/auth.json"
+        AGENT_DOCKER_ARGS+=(-v "$TMP_AGENT_LOCAL:$AGENT_CONTAINER_HOME/.local")
     fi
 
     # --- provider API keys from host environment ---
-    [ -n "${ANTHROPIC_API_KEY:-}"   ] && AGENT_DOCKER_ARGS+=(-e "ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY")
-    [ -n "${OPENAI_API_KEY:-}"      ] && AGENT_DOCKER_ARGS+=(-e "OPENAI_API_KEY=$OPENAI_API_KEY")
-    [ -n "${GEMINI_API_KEY:-}"      ] && AGENT_DOCKER_ARGS+=(-e "GEMINI_API_KEY=$GEMINI_API_KEY")
-    [ -n "${OPENROUTER_API_KEY:-}"  ] && AGENT_DOCKER_ARGS+=(-e "OPENROUTER_API_KEY=$OPENROUTER_API_KEY")
-    [ -n "${OPENCODE_API_KEY:-}"    ] && AGENT_DOCKER_ARGS+=(-e "OPENCODE_API_KEY=$OPENCODE_API_KEY")
+    if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
+        AGENT_DOCKER_ARGS+=(-e "ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY")
+    fi
+    if [ -n "${OPENAI_API_KEY:-}" ]; then
+        AGENT_DOCKER_ARGS+=(-e "OPENAI_API_KEY=$OPENAI_API_KEY")
+    fi
+    if [ -n "${GEMINI_API_KEY:-}" ]; then
+        AGENT_DOCKER_ARGS+=(-e "GEMINI_API_KEY=$GEMINI_API_KEY")
+    fi
+    if [ -n "${OPENROUTER_API_KEY:-}" ]; then
+        AGENT_DOCKER_ARGS+=(-e "OPENROUTER_API_KEY=$OPENROUTER_API_KEY")
+    fi
+    if [ -n "${OPENCODE_API_KEY:-}" ]; then
+        AGENT_DOCKER_ARGS+=(-e "OPENCODE_API_KEY=$OPENCODE_API_KEY")
+    fi
+
+    return 0
 }
 
 agent_cleanup() {
     [ -n "${TMP_AGENT_DIR:-}"  ] && [ -d "$TMP_AGENT_DIR"  ] && rm -rf "$TMP_AGENT_DIR"
-    [ -n "${TMP_AGENT_AUTH:-}" ] && rm -f "$TMP_AGENT_AUTH"
+    [ -n "${TMP_AGENT_LOCAL:-}" ] && [ -d "$TMP_AGENT_LOCAL" ] && rm -rf "$TMP_AGENT_LOCAL"
 }
 
 agent_prompt_argv() {
